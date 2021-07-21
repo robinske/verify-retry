@@ -19,7 +19,7 @@
 // eslint-disable-next-line consistent-return
 exports.handler = function (context, event, callback) {
   const response = new Twilio.Response();
-  response.appendHeader('Content-Type', 'application/json');
+  response.appendHeader("Content-Type", "application/json");
 
   /*
    * uncomment to support CORS
@@ -28,13 +28,10 @@ exports.handler = function (context, event, callback) {
    * response.appendHeader('Access-Control-Allow-Headers', 'Content-Type');
    */
 
-  if (
-    typeof event.to === 'undefined' ||
-    typeof event.verification_code === 'undefined'
-  ) {
+  if (typeof event.to === "undefined" || typeof event.code === "undefined") {
     response.setBody({
       success: false,
-      message: 'Missing parameter.',
+      message: "Missing parameter.",
     });
     response.setStatusCode(400);
     return callback(null, response);
@@ -42,7 +39,7 @@ exports.handler = function (context, event, callback) {
 
   const client = context.getTwilioClient();
   const service = context.VERIFY_SERVICE_SID;
-  const { to, verification_code: code } = event;
+  const { to, code } = event;
 
   client.verify
     .services(service)
@@ -51,18 +48,18 @@ exports.handler = function (context, event, callback) {
       code,
     })
     .then((check) => {
-      if (check.status === 'approved') {
+      if (check.status === "approved") {
         response.setStatusCode(200);
         response.setBody({
           success: true,
-          message: 'Verification success.',
+          message: "Verification success.",
         });
         return callback(null, response);
       }
       response.setStatusCode(401);
       response.setBody({
         success: false,
-        message: 'Incorrect token.',
+        message: "Incorrect token.",
       });
       return callback(null, response);
     })

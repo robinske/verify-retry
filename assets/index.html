@@ -15,11 +15,6 @@
     />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/16.0.11/js/intlTelInput.min.js"></script>
     <script
-      src="https://code.jquery.com/jquery-3.4.1.min.js"
-      integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo="
-      crossorigin="anonymous"
-    ></script>
-    <script
       src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"
       integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
       crossorigin="anonymous"
@@ -29,50 +24,20 @@
     <div class="container">
       <h2>Twilio Verify</h2>
       <p>
-        This example shows how to deploy 
-        <a href="https://twilio.com/docs/verify/api">Twilio Verify</a> 
-        and Twilio functions for serverless user verification.
+        This example shows how to use
+        <a href="https://twilio.com/docs/verify/api">Twilio Verify</a>
+        and Twilio functions for serverless user verification, including best
+        practices for SMS retry logic with Voice fallback.
       </p>
+      <p></p>
       <div class="content">
         <form id="login">
-          <div class="form-group" id="channel-select">
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" name="channel" id="channel-sms" value="sms" checked>
-              <label class="form-check-label" for="channel-sms">SMS</label>
-            </div>
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" name="channel" id="channel-call" value="call">
-              <label class="form-check-label" for="channel-call">Call</label>
-            </div>
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" name="channel" id="channel-email" value="email">
-              <label class="form-check-label" for="channel-email">Email</label>
-            </div>
-          </div>
           <div class="form-group phone-input">
             <p>Enter your phone number:</p>
-            <input
-              type="tel"
-              id="phone_number"
-              class="form-control" />
-          </div>
-          <div class="form-group email-input" style="display:none;">
-            <p>Enter your email:</p>
-            <input
-              type="email"
-              id="email"
-              class="form-control" />
-          </div>
-          <div class="form-group locale-input">
-            <p>Select your preferred language:</p>
-            <select class="form-control" id="select-locale">
-            </select>
+            <input type="tel" id="phone_number" class="form-control" />
           </div>
           <div class="form-group">
-            <input
-              type="submit"
-              class="btn btn-primary"
-              value="Verify"/>
+            <input type="submit" class="btn btn-primary" value="Verify" />
           </div>
         </form>
         <span id="form-error" class="text-danger"></span>
@@ -91,23 +56,32 @@
                         class="form-control input-lg"
                         id="verification_code"
                         placeholder="Enter the token sent to your device"
-                        required/>
+                        required
+                      />
                       <span class="input-group-btn">
-                        <button 
-                          class="btn btn-primary btn-lg" 
-                          type="submit">Verify
+                        <button class="btn btn-primary btn-lg" type="submit">
+                          Verify
                         </button>
                       </span>
                     </form>
+                    <button
+                      type="button"
+                      id="retry-counter"
+                      class="btn btn-link btn-block disabled"
+                    ></button>
                   </div>
                 </div>
               </div>
             </div>
-          </div><!-- /.modal-content -->
-        </div><!-- /.modal-dialog -->
-      </div><!-- /.modal -->
-    </div><!-- /.container -->
-    <!-- EDIT_CODE -->
+          </div>
+          <!-- /.modal-content -->
+        </div>
+        <!-- /.modal-dialog -->
+      </div>
+      <!-- /.modal -->
+    </div>
+    <!-- /.container -->
+    <!-- EDIT_CODE_V2 -->
   </body>
   <script>
     // Handle international prefixes, format phone input field
@@ -115,30 +89,20 @@
     const phoneInputField = document.querySelector("#phone_number");
     const phoneInput = window.intlTelInput(phoneInputField, {
       // https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2
-      preferredCountries: ["us", "co", "in", "de"],
-      separateDialCode: true,
+      preferredCountries: ["us", "gb", "de", "co", "jp", "sg"],
       utilsScript:
-        "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/16.0.11/js/utils.js"
-    });
-
-    $("#channel-select").change(function() {
-      const channel = $("input[name='channel']:checked").val();
-      if (channel === "email") {
-        $(".phone-input").hide();
-        $(".email-input").show();
-      } else if (channel === "sms" || channel === "call") {
-        $(".phone-input").show();
-        $(".email-input").hide();
-      }
+        "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/16.0.11/js/utils.js",
     });
 
     function showVerificationStatus(alertType, message) {
       var content = $(".result-message");
       content.empty();
-      content.append($("<div>")
-        .addClass(`alert alert-${alertType}`)
-        .attr("role", "alert")
-        .text(message))
+      content.append(
+        $("<div>")
+          .addClass(`alert alert-${alertType}`)
+          .attr("role", "alert")
+          .text(message)
+      );
     }
 
     function showVerificationStartError(error) {
@@ -147,48 +111,97 @@
       content.append(`Error: ${error}`);
     }
 
+    function startCountdown() {
+      let counter = $("#retry-counter");
+      counter.addClass("disabled");
+
+      let timer = function (x) {
+        if (x === 0) {
+          counter.html("<strong>Resend token</strong>").removeClass("disabled");
+          return;
+        }
+
+        counter.html(`Resend token in <strong>` + x + ` seconds</strong>`);
+        return setTimeout(() => {
+          timer(--x);
+        }, 1000);
+      };
+
+      timer(30);
+    }
+
     var to;
 
-    $("#login").submit(function(event) {
-      event.preventDefault();
-
-      const channel = $("input[name='channel']:checked").val();
-      const locale = $("#select-locale").val();
-      to = (channel === "email") ? $("#email").val() : phoneInput.getNumber();
-
-      // Twilio functions do not accept multipart/form-data
-      const data = new URLSearchParams();
-      data.append("to", to);
-      data.append("channel", channel);
-      data.append("locale", locale);
-
-      fetch("./start-verify", {
-          method: "POST",
-          body: data
-        })
-        .then(response => {
-          const content = $(".result-message");
-          content.empty();
-          return response.json()
-        })
-        .then(json => {
-          if (json.success) {
-            $("#form-error").empty();
-            $(".modal").modal("show");
-            console.log("Successfully sent token.");
-          } else {
-            console.log(json.error);
-            showVerificationStartError(
-              `${json.error.message} <a href="${json.error.moreInfo}">[more info]</a>`);
-          }
-        })
-        .catch(err => {
-          console.log(err);
-          showVerificationStartError("Error starting verification.");
-        });
+    $("#retry-counter").submit(function (event) {
+      // send code again
     });
 
-    $("#verification").submit(function(event) {
+    function sendVerificationToken(event) {
+      event.preventDefault();
+
+      const channel = "sms";
+      to = phoneInput.getNumber();
+
+      const data = new URLSearchParams();
+      data.append("channel", channel);
+      data.append("to", to);
+
+      fetch("./start-verify", {
+        method: "POST",
+        body: data,
+      })
+        .then((response) => response.json())
+        .then((json) => {
+          if (json.success) {
+            hidePhoneNumberInput();
+            document.getElementById("otp").style.display = "flex";
+            startCountdown();
+            console.log("Successfully sent token.");
+          } else {
+            logError(json.error.message + ` ` + json.error.moreInfo);
+          }
+        })
+        .catch((error) => {
+          logError(error);
+        });
+    }
+
+    function logError(error) {
+      console.error(error);
+      document.getElementById("status").textContent = error;
+    }
+
+    function verify(event) {
+      event.preventDefault();
+
+      const data = new URLSearchParams();
+      data.append("to", to);
+      data.append("code", document.getElementById("code").value);
+
+      var tags = document.querySelectorAll("input[name=tags]:checked");
+      tags.forEach((tag) => data.append("tags", tag.value));
+
+      fetch("./check-verify", {
+        method: "POST",
+        body: data,
+      })
+        .then((response) => response.json())
+        .then((json) => {
+          if (json.success) {
+            hideOtpInput();
+            document.getElementById("otp").style.display = "none";
+            document.getElementById("status").textContent =
+              "Successfully subscribed to updates.";
+          } else {
+            logError(json.error);
+          }
+        })
+        .catch((error) => {
+          logError(error);
+        });
+    }
+
+    $("#verification").submit(function (event) {
       event.preventDefault();
       const code = $("#verification_code").val();
 
@@ -198,11 +211,11 @@
       data.append("verification_code", code);
 
       fetch("./check-verify", {
-          method: 'POST',
-          body: data
-        })
-        .then(response => response.json())
-        .then(json => {
+        method: "POST",
+        body: data,
+      })
+        .then((response) => response.json())
+        .then((json) => {
           if (json.success) {
             showVerificationStatus("success", json.message);
             $("#verification_code").val("");
@@ -211,58 +224,11 @@
             $("#verification_code").val("");
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.log(err);
           showVerificationStatus("danger", "Something went wrong!");
           $("#verification_code").val("");
         });
-    });
-
-    const locales = [
-      { text: "English", value: "en" },
-      { text: "Afrikaans", value: "af" },
-      { text: "Arabic", value: "ar" },
-      { text: "Catalan", value: "ca" },
-      { text: "Chinese", value: "zh" },
-      { text: "Chinese (Mandarin)", value: "zh-CN" },
-      { text: "Chinese (Cantonese)", value: "zh-HK" },
-      { text: "Croatian", value: "hr" },
-      { text: "Czech", value: "cs" },
-      { text: "Danish", value: "da" },
-      { text: "Dutch", value: "nl" },
-      { text: "English (British)", value: "en-GB" },
-      { text: "Finnish", value: "fi" },
-      { text: "French", value: "fr" },
-      { text: "German", value: "de" },
-      { text: "Greek", value: "el" },
-      { text: "Hebrew", value: "he" },
-      { text: "Hindi", value: "hi" },
-      { text: "Hungarian", value: "hu" },
-      { text: "Indonesian", value: "id" },
-      { text: "Italian", value: "it" },
-      { text: "Japanese", value: "ja" },
-      { text: "Korean", value: "ko" },
-      { text: "Malay", value: "ms" },
-      { text: "Norwegian", value: "nb" },
-      { text: "Polish", value: "pl" },
-      { text: "Portuguese - Brazil", value: "pt-BR" },
-      { text: "Portuguese", value: "pt" },
-      { text: "Romanian", value: "ro" },
-      { text: "Russian", value: "ru" },
-      { text: "Spanish", value: "es" },
-      { text: "Swedish", value: "sv" },
-      { text: "Tagalog", value: "tl" },
-      { text: "Thai", value: "th" },
-      { text: "Turkish", value: "tr" },
-      { text: "Vietnamese", value: "vi" }
-    ];
-
-    const selectLocale = $("#select-locale");
-
-    locales.forEach(l => {
-      selectLocale.append($("<option>")
-        .val(l.value)
-        .text(l.text))
     });
   </script>
 </html>
