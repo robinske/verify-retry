@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="x-ua-compatible" content="ie=edge" />
-    <title>Subscribe to SMS updates</title>
+    <title>SMS Verification with Voice fallback</title>
 
     <link
       rel="icon"
@@ -48,11 +48,6 @@
         color: grey;
         cursor: not-allowed;
         text-decoration: none;
-      }
-
-      #status {
-        font-size: 0.875rem;
-        color: grey;
       }
     </style>
   </head>
@@ -127,10 +122,8 @@
               <input type="submit" value="Verify" />
             </div>
           </form>
-          <button id="retry" disabled="true" style="display: none">
-            Resend a code in <span id="counter">30</span> seconds
-          </button>
-          <button id="call" style="display: none">Call me instead</button>
+          <button id="retry" disabled="true" style="display: none"></button>
+          <button id="call" style="display: none">📞 Call me instead</button>
         </section>
       </div>
       <!-- EDIT_CODE_V2 -->
@@ -152,23 +145,25 @@
 
     function showError(error) {
       console.error(error);
-      showStatus(error);
+      showStatus(error, (color = "#a94442"));
     }
 
-    function showStatus(message) {
-      document.getElementById("status").textContent = message;
+    function showStatus(message, color = "gray") {
+      let status = document.getElementById("status");
+      status.style.color = color;
+      status.textContent = message;
     }
 
-    function showReset() {
+    function showReset(message = "or use a different phone number") {
       document.getElementById(
         "reset"
-      ).innerHTML = `<a href="#" onclick="window.location.reload(false);">or try another verification.</a>`;
+      ).innerHTML = `<a href="#" onclick="window.location.reload(false);">${message}.</a>`;
     }
 
     function getRetryTimeout(attemptNumber) {
       const retryTimeouts = {
         1: 30,
-        2: 45,
+        2: 40,
         3: 60,
         4: 90,
         5: 120,
@@ -186,37 +181,6 @@
       document.getElementById("otp").style.display = "block";
     }
 
-    function startCountdown(attempts) {
-      let retryButton = document.getElementById("retry");
-      retryButton.setAttribute("disabled", true);
-      retryButton.style.display = "block";
-
-      console.log(`Attempt number: ${attempts}`);
-      let timeout = getRetryTimeout(attempts);
-      console.log(timeout);
-
-      let timer = function (time) {
-        if (time === 15) {
-          showCallFallback(attempts);
-        }
-
-        if (time === 0) {
-          clearInterval(timer);
-          retryButton.removeAttribute("disabled");
-          retryButton.innerHTML = "Resend code";
-          return;
-        }
-
-        retryButton.innerHTML =
-          `Resend a code in <strong>` + time + ` seconds</strong>`;
-        return setTimeout(() => {
-          timer(--time);
-        }, 1000);
-      };
-
-      timer(timeout);
-    }
-
     function showCallFallback(attempts) {
       let minAttemptForVoice = 3;
       if (attempts < minAttemptForVoice) return;
@@ -224,11 +188,40 @@
       document.getElementById("call").style.display = "block";
     }
 
+    let timer;
+    let timeRemaining;
+    let retryButton = document.getElementById("retry");
+
+    function startCountdown(attempts) {
+      clearInterval(timer);
+      retryButton.setAttribute("disabled", true);
+      retryButton.style.display = "block";
+
+      console.log(`Attempt number: ${attempts}`);
+      timeRemaining = getRetryTimeout(attempts);
+      timer = setInterval(() => countdown(attempts), 1000);
+    }
+
+    function countdown(attempts) {
+      if (timeRemaining == 0) {
+        clearInterval(timer);
+        retryButton.removeAttribute("disabled");
+        retryButton.innerHTML = "🔁 Resend code";
+      } else {
+        if (timeRemaining == 15) {
+          showCallFallback(attempts);
+        }
+        console.log(timeRemaining);
+        retryButton.innerHTML =
+          `🔁 Resend code in <strong>` + timeRemaining + ` seconds</strong>`;
+        timeRemaining--;
+      }
+    }
+
     var to;
 
     function sendVerificationToken(event, channel = "sms") {
       event.preventDefault();
-
       showOtpForm();
 
       to = phoneInput.getNumber();
@@ -244,11 +237,11 @@
         .then((response) => response.json())
         .then((json) => {
           if (json.success) {
-            showStatus(`Sent verification code to ${to}. Check your device`);
+            showStatus(json.message);
             showReset();
             startCountdown(json.attempts);
           } else {
-            showError(json.error.message);
+            showError(json.message);
           }
         })
         .catch((error) => {
@@ -256,17 +249,21 @@
         });
     }
 
-    function retrySend(event) {
+    function clearStatus() {
+      clearInterval(timer);
       document.getElementById("status").textContent = "";
+      document.getElementById("reset").innerHTML = "";
       document.getElementById("retry").style.display = "none";
+      document.getElementById("call").style.display = "none";
+    }
 
+    function retrySend(event) {
+      clearStatus();
       sendVerificationToken(event);
     }
 
     function sendVoiceToken(event) {
-      document.getElementById("status").textContent = "";
-      document.getElementById("retry").style.display = "none";
-
+      clearStatus();
       sendVerificationToken(event, (channel = "call"));
     }
 
@@ -287,10 +284,10 @@
         .then((response) => response.json())
         .then((json) => {
           if (json.success) {
+            clearStatus();
             document.getElementById("otp").style.display = "none";
-            document.getElementById("retry").style.display = "none";
-            showStatus(json.message);
-            showReset();
+            showStatus(json.message, (color = "#3c763d"));
+            showReset((message = "Try another verification"));
           } else {
             showError(json.message);
           }

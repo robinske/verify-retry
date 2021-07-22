@@ -11,11 +11,9 @@
  *
  *  Returns JSON
  *  {
- *    "success": boolean,
- *    "error": {                // not present if success is true
- *      "message": string,
- *      "moreInfo": url string
- *    }
+ *    "success":  boolean,
+ *    "attempts": integer, // not present if success is false
+ *    "message":  string
  *  }
  */
 
@@ -34,28 +32,7 @@ exports.handler = function (context, event, callback) {
   if (typeof event.to === "undefined") {
     response.setBody({
       success: false,
-      error: {
-        message: "Missing parameter; please provide a phone number or email.",
-        moreInfo: "https://www.twilio.com/docs/verify/api/verification",
-      },
-    });
-    response.setStatusCode(400);
-    return callback(null, response);
-  }
-
-  /*
-   * DELETE THIS BLOCK IF YOU WANT TO ENABLE THE VOICE CHANNEL
-   * Learn more about toll fraud
-   * https://www.twilio.com/docs/verify/preventing-toll-fraud
-   */
-  if (event.channel === "call") {
-    response.setBody({
-      success: false,
-      error: {
-        message:
-          "Calls disabled by default. Update the code in <code>start-verify.js</code> to enable.",
-        moreInfo: "https://www.twilio.com/docs/verify/preventing-toll-fraud",
-      },
+      message: "Missing parameter; please provide a phone number or email.",
     });
     response.setStatusCode(400);
     return callback(null, response);
@@ -66,21 +43,19 @@ exports.handler = function (context, event, callback) {
   const { to } = event;
   const channel = typeof event.channel === "undefined" ? "sms" : event.channel;
 
-  console.log(channel);
-
   client.verify
     .services(service)
     .verifications.create({
       to,
       channel,
-      locale,
     })
     .then((verification) => {
-      console.log(`Sent verification: '${verification.sid}'`);
+      console.log(`Sent verification ${verification.sid}`);
       response.setStatusCode(200);
       response.setBody({
         success: true,
         attempts: verification.sendCodeAttempts.length,
+        message: `Sent verification to: ${to}`,
       });
       return callback(null, response);
     })
@@ -89,10 +64,7 @@ exports.handler = function (context, event, callback) {
       response.setStatusCode(error.status);
       response.setBody({
         success: false,
-        error: {
-          message: error.message,
-          moreInfo: error.moreInfo,
-        },
+        message: error.message,
       });
       return callback(null, response);
     });
