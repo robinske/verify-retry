@@ -182,13 +182,13 @@
       document.getElementById("otp").style.display = "block";
     }
 
-    function startCountdown() {
+    function startCountdown(attempts) {
       document.getElementById("retry").style.display = "block";
-      console.log("counting down...");
+      console.log(`Attempt number: ${attempts}`);
+      let retryTimeout = getRetryTimeout(attempts);
     }
 
     var to;
-    var attempt;
 
     function sendVerificationToken(event) {
       event.preventDefault();
@@ -207,14 +207,12 @@
         body: data,
       })
         .then((response) => response.json())
-        .then((json) => {
-          if (json.success) {
-            showStatus(
-              `Sent verification code to ${to}. Please check your device.`
-            );
-            startCountdown();
+        .then(({ success, attempts }) => {
+          if (success) {
+            showStatus(`Sent verification code to ${to}. Check your device.`);
+            startCountdown(attempts);
           } else {
-            showError(json.error.message + `: ` + json.error.moreInfo);
+            showError(json.error.message);
           }
         })
         .catch((error) => {
