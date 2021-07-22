@@ -28,16 +28,18 @@
         border-radius: 4px;
       }
 
-      #retry {
+      #retry,
+      #call {
         display: block;
         background-color: transparent;
         border: none;
         color: #509ee3;
         text-decoration: underline;
-        padding: 0;
+        padding: 0 0 10px 0;
       }
 
-      #retry:hover {
+      #retry:hover,
+      #call:hover {
         color: blue;
         cursor: pointer;
       }
@@ -126,8 +128,9 @@
             </div>
           </form>
           <button id="retry" disabled="true" style="display: none">
-            You can resend a code in <span id="counter"> 5 </span> seconds
+            Resend a code in <span id="counter">30</span> seconds
           </button>
+          <button id="call" style="display: none">Call me instead</button>
         </section>
       </div>
       <!-- EDIT_CODE_V2 -->
@@ -159,13 +162,10 @@
     function showReset() {
       document.getElementById(
         "reset"
-      ).innerHTML = `<a href="#" onclick="window.location.reload(false);">Try another verification.</a>`;
+      ).innerHTML = `<a href="#" onclick="window.location.reload(false);">or try another verification.</a>`;
     }
 
     function getRetryTimeout(attemptNumber) {
-      if (attemptNumber > 5) return -1;
-
-      // increase timeout with more attempts
       const retryTimeouts = {
         1: 30,
         2: 45,
@@ -174,7 +174,11 @@
         5: 120,
       };
 
-      return retryTimeouts[attemptNumber];
+      const maxTimeout = 600;
+      const defaultTimeout =
+        maxTimeout - Object.values(retryTimeouts).reduce((a, b) => a + b);
+
+      return retryTimeouts[attemptNumber] || defaultTimeout;
     }
 
     function showOtpForm() {
@@ -183,19 +187,50 @@
     }
 
     function startCountdown(attempts) {
-      document.getElementById("retry").style.display = "block";
+      let retryButton = document.getElementById("retry");
+      retryButton.setAttribute("disabled", true);
+      retryButton.style.display = "block";
+
       console.log(`Attempt number: ${attempts}`);
-      let retryTimeout = getRetryTimeout(attempts);
+      let timeout = getRetryTimeout(attempts);
+      console.log(timeout);
+
+      let timer = function (time) {
+        if (time === 15) {
+          showCallFallback(attempts);
+        }
+
+        if (time === 0) {
+          clearInterval(timer);
+          retryButton.removeAttribute("disabled");
+          retryButton.innerHTML = "Resend code";
+          return;
+        }
+
+        retryButton.innerHTML =
+          `Resend a code in <strong>` + time + ` seconds</strong>`;
+        return setTimeout(() => {
+          timer(--time);
+        }, 1000);
+      };
+
+      timer(timeout);
+    }
+
+    function showCallFallback(attempts) {
+      let minAttemptForVoice = 3;
+      if (attempts < minAttemptForVoice) return;
+
+      document.getElementById("call").style.display = "block";
     }
 
     var to;
 
-    function sendVerificationToken(event) {
+    function sendVerificationToken(event, channel = "sms") {
       event.preventDefault();
 
       showOtpForm();
 
-      const channel = "sms";
       to = phoneInput.getNumber();
 
       const data = new URLSearchParams();
@@ -207,10 +242,11 @@
         body: data,
       })
         .then((response) => response.json())
-        .then(({ success, attempts }) => {
-          if (success) {
-            showStatus(`Sent verification code to ${to}. Check your device.`);
-            startCountdown(attempts);
+        .then((json) => {
+          if (json.success) {
+            showStatus(`Sent verification code to ${to}. Check your device`);
+            showReset();
+            startCountdown(json.attempts);
           } else {
             showError(json.error.message);
           }
@@ -218,6 +254,20 @@
         .catch((error) => {
           showError(error);
         });
+    }
+
+    function retrySend(event) {
+      document.getElementById("status").textContent = "";
+      document.getElementById("retry").style.display = "none";
+
+      sendVerificationToken(event);
+    }
+
+    function sendVoiceToken(event) {
+      document.getElementById("status").textContent = "";
+      document.getElementById("retry").style.display = "none";
+
+      sendVerificationToken(event, (channel = "call"));
     }
 
     function validateToken(event) {
@@ -254,11 +304,8 @@
     document
       .getElementById("login")
       .addEventListener("submit", sendVerificationToken);
-
-    document
-      .getElementById("retry")
-      .addEventListener("submit", sendVerificationToken);
-
+    document.getElementById("retry").addEventListener("click", retrySend);
+    document.getElementById("call").addEventListener("click", sendVoiceToken);
     document.getElementById("otp").addEventListener("submit", validateToken);
   </script>
 </html>

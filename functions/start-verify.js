@@ -65,7 +65,8 @@ exports.handler = function (context, event, callback) {
   const service = context.VERIFY_SERVICE_SID;
   const { to } = event;
   const channel = typeof event.channel === "undefined" ? "sms" : event.channel;
-  const locale = typeof event.locale === "undefined" ? "en" : event.locale;
+
+  console.log(channel);
 
   client.verify
     .services(service)
