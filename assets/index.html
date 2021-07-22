@@ -47,6 +47,11 @@
         cursor: not-allowed;
         text-decoration: none;
       }
+
+      #status {
+        font-size: 0.875rem;
+        color: grey;
+      }
     </style>
   </head>
   <body>
@@ -70,7 +75,7 @@
         </div>
         <nav>
           <a href="/index.html" style="text-decoration: none; color: white"
-            ><span>Your Twilio application</span>
+            ><span>Your Twilio Verify Application</span>
             <aside>
               <svg
                 class="icon"
@@ -87,7 +92,8 @@
                   d="M6.991 7.507c.003-.679 1.021-.675 1.019.004-.012 2.956 1.388 4.41 4.492 4.48.673.016.66 1.021-.013 1.019-2.898-.011-4.327 1.446-4.48 4.506-.033.658-1.01.639-1.018-.02-.03-3.027-1.382-4.49-4.481-4.486-.675 0-.682-1.009-.008-1.019 3.02-.042 4.478-1.452 4.49-4.484zm.505 2.757l-.115.242c-.459.9-1.166 1.558-2.115 1.976l.176.08c.973.465 1.664 1.211 2.083 2.22l.02.05.088-.192c.464-.973 1.173-1.685 2.123-2.124l.039-.018-.118-.05c-.963-.435-1.667-1.117-2.113-2.034l-.068-.15zm10.357-8.12c.174.17.194.434.058.625l-.058.068-1.954 1.905 1.954 1.908a.482.482 0 010 .694.512.512 0 01-.641.056l-.07-.056-1.954-1.908-1.954 1.908a.511.511 0 01-.71 0 .482.482 0 01-.058-.626l.058-.068 1.954-1.908-1.954-1.905a.482.482 0 010-.693.512.512 0 01.64-.057l.07.057 1.954 1.905 1.954-1.905a.511.511 0 01.71 0z"
                 ></path>
               </svg>
-              Live
+              Live. This demo includes best practices for SMS verification retry
+              logic with Voice fallback.
             </aside>
           </a>
         </nav>
@@ -95,15 +101,6 @@
     </div>
     <main>
       <div class="content">
-        <section id="intro">
-          <h2>Twilio Verify</h2>
-          <p>
-            This example shows how to use
-            <a href="https://twilio.com/docs/verify/api">Twilio Verify</a>
-            and Twilio functions for serverless user verification, including
-            best practices for SMS retry logic with Voice fallback.
-          </p>
-        </section>
         <section>
           <form id="login">
             <div>
@@ -115,7 +112,10 @@
             </div>
           </form>
           <!-- TODO - make this colorful based on status -->
-          <div><span id="status"></span></div>
+          <div>
+            <span id="status"></span>
+            <span id="reset"></span>
+          </div>
           <form id="otp" style="display: none">
             <div>
               <label for="code">Enter the token sent to your device:</label>
@@ -126,9 +126,8 @@
             </div>
           </form>
           <button id="retry" disabled="true" style="display: none">
-            You can resend a code in <span id="counter">5</span> seconds
+            You can resend a code in <span id="counter"> 5 </span> seconds
           </button>
-          <div><span id="otp-status"></span></div>
         </section>
       </div>
       <!-- EDIT_CODE_V2 -->
@@ -157,6 +156,12 @@
       document.getElementById("status").textContent = message;
     }
 
+    function showReset() {
+      document.getElementById(
+        "reset"
+      ).innerHTML = `<a href="#" onclick="window.location.reload(false);">Try another verification.</a>`;
+    }
+
     function getRetryTimeout(attemptNumber) {
       if (attemptNumber > 5) return -1;
 
@@ -172,7 +177,13 @@
       return retryTimeouts[attemptNumber];
     }
 
+    function showOtpForm() {
+      document.getElementById("login").style.display = "none";
+      document.getElementById("otp").style.display = "block";
+    }
+
     function startCountdown() {
+      document.getElementById("retry").style.display = "block";
       console.log("counting down...");
     }
 
@@ -181,6 +192,8 @@
 
     function sendVerificationToken(event) {
       event.preventDefault();
+
+      showOtpForm();
 
       const channel = "sms";
       to = phoneInput.getNumber();
@@ -196,10 +209,10 @@
         .then((response) => response.json())
         .then((json) => {
           if (json.success) {
-            document.getElementById("login").style.display = "none";
-            document.getElementById("otp").style.display = "flex";
+            showStatus(
+              `Sent verification code to ${to}. Please check your device.`
+            );
             startCountdown();
-            console.log("Successfully sent token.");
           } else {
             showError(json.error.message + `: ` + json.error.moreInfo);
           }
@@ -226,7 +239,10 @@
         .then((response) => response.json())
         .then((json) => {
           if (json.success) {
+            document.getElementById("otp").style.display = "none";
+            document.getElementById("retry").style.display = "none";
             showStatus(json.message);
+            showReset();
           } else {
             showError(json.message);
           }
