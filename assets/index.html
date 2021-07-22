@@ -114,8 +114,9 @@
               <input type="submit" value="Verify" />
             </div>
           </form>
-          <div><span id="sent-status"></span></div>
-          <form id="otp">
+          <!-- TODO - make this colorful based on status -->
+          <div><span id="status"></span></div>
+          <form id="otp" style="display: none">
             <div>
               <label for="code">Enter the token sent to your device:</label>
             </div>
@@ -124,7 +125,7 @@
               <input type="submit" value="Verify" />
             </div>
           </form>
-          <button id="retry" disabled="true">
+          <button id="retry" disabled="true" style="display: none">
             You can resend a code in <span id="counter">5</span> seconds
           </button>
           <div><span id="otp-status"></span></div>
@@ -172,22 +173,7 @@
     }
 
     function startCountdown() {
-      let counter = $("#retry");
-      counter.addClass("disabled");
-
-      let timer = function (x) {
-        if (x === 0) {
-          counter.html("<strong>Resend token</strong>").removeClass("disabled");
-          return;
-        }
-
-        counter.html(`Resend token in <strong>` + x + ` seconds</strong>`);
-        return setTimeout(() => {
-          timer(--x);
-        }, 1000);
-      };
-
-      timer(30);
+      console.log("counting down...");
     }
 
     var to;
@@ -215,11 +201,11 @@
             startCountdown();
             console.log("Successfully sent token.");
           } else {
-            logError(json.error.message + ` ` + json.error.moreInfo);
+            showError(json.error.message + `: ` + json.error.moreInfo);
           }
         })
         .catch((error) => {
-          logError(error);
+          showError(error);
         });
     }
 
@@ -240,15 +226,14 @@
         .then((response) => response.json())
         .then((json) => {
           if (json.success) {
-            showVerificationStatus("success", json.message);
-            $("#verification_code").val("");
+            showStatus(json.message);
           } else {
-            showVerificationStatus("danger", json.message);
-            $("#verification_code").val("");
+            showError(json.message);
           }
+          document.getElementById("code").value = "";
         })
         .catch((error) => {
-          logError(error);
+          showError(error);
         });
     }
 
