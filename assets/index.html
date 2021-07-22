@@ -1,87 +1,140 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Login with Twilio Verify</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>Subscribe to SMS updates</title>
+
+    <link
+      rel="icon"
+      href="https://twilio-labs.github.io/function-templates/static/v1/favicon.ico"
+    />
     <link
       rel="stylesheet"
-      href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
-      integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
-      crossorigin="anonymous"
+      href="https://twilio-labs.github.io/function-templates/static/v1/ce-paste-theme.css"
     />
+
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/16.0.11/css/intlTelInput.css"
     />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/16.0.11/js/intlTelInput.min.js"></script>
-    <script
-      src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"
-      integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
-      crossorigin="anonymous"
-    ></script>
+    <style>
+      input[type="submit"],
+      input[type="tel"] {
+        font: inherit;
+        border: 1px solid rgb(136, 145, 170);
+        border-radius: 4px;
+      }
+
+      #retry {
+        display: block;
+        background-color: transparent;
+        border: none;
+        color: #509ee3;
+        text-decoration: underline;
+        padding: 0;
+      }
+
+      #retry:hover {
+        color: blue;
+        cursor: pointer;
+      }
+
+      #retry:disabled {
+        color: grey;
+        cursor: not-allowed;
+        text-decoration: none;
+      }
+    </style>
   </head>
   <body>
-    <div class="container">
-      <h2>Twilio Verify</h2>
-      <p>
-        This example shows how to use
-        <a href="https://twilio.com/docs/verify/api">Twilio Verify</a>
-        and Twilio functions for serverless user verification, including best
-        practices for SMS retry logic with Voice fallback.
-      </p>
-      <p></p>
-      <div class="content">
-        <form id="login">
-          <div class="form-group phone-input">
-            <p>Enter your phone number:</p>
-            <input type="tel" id="phone_number" class="form-control" />
-          </div>
-          <div class="form-group">
-            <input type="submit" class="btn btn-primary" value="Verify" />
-          </div>
-        </form>
-        <span id="form-error" class="text-danger"></span>
-      </div>
-      <div class="modal" id="verification_modal">
-        <div class="modal-dialog" role="document">
-          <div class="modal-content">
-            <div class="modal-body">
-              <div class="row">
-                <div class="col-lg-12">
-                  <div class="result-message"></div>
-                  <div>
-                    <form id="verification" class="input-group input-group-lg">
-                      <input
-                        type="text"
-                        class="form-control input-lg"
-                        id="verification_code"
-                        placeholder="Enter the token sent to your device"
-                        required
-                      />
-                      <span class="input-group-btn">
-                        <button class="btn btn-primary btn-lg" type="submit">
-                          Verify
-                        </button>
-                      </span>
-                    </form>
-                    <button
-                      type="button"
-                      id="retry-counter"
-                      class="btn btn-link btn-block disabled"
-                    ></button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- /.modal-content -->
+    <div class="page-top">
+      <header>
+        <div id="twilio-logo">
+          <a href="https://www.twilio.com/" target="_blank" rel="noopener">
+            <svg
+              class="logo"
+              data-name="Layer 1"
+              xmlns="http://www.w3.org/2000/svg"
+              viewbox="0 0 60 60"
+            >
+              <title>Twilio Logo</title>
+              <path
+                class="cls-1"
+                d="M30,15A15,15,0,1,0,45,30,15,15,0,0,0,30,15Zm0,26A11,11,0,1,1,41,30,11,11,0,0,1,30,41Zm6.8-14.7a3.1,3.1,0,1,1-3.1-3.1A3.12,3.12,0,0,1,36.8,26.3Zm0,7.4a3.1,3.1,0,1,1-3.1-3.1A3.12,3.12,0,0,1,36.8,33.7Zm-7.4,0a3.1,3.1,0,1,1-3.1-3.1A3.12,3.12,0,0,1,29.4,33.7Zm0-7.4a3.1,3.1,0,1,1-3.1-3.1A3.12,3.12,0,0,1,29.4,26.3Z"
+              />
+            </svg>
+          </a>
         </div>
-        <!-- /.modal-dialog -->
-      </div>
-      <!-- /.modal -->
+        <nav>
+          <a href="/index.html" style="text-decoration: none; color: white"
+            ><span>Your Twilio application</span>
+            <aside>
+              <svg
+                class="icon"
+                role="img"
+                aria-hidden="true"
+                width="100%"
+                height="100%"
+                viewBox="0 0 20 20"
+                aria-labelledby="NewIcon-1577"
+              >
+                <path
+                  fill="currentColor"
+                  fill-rule="evenodd"
+                  d="M6.991 7.507c.003-.679 1.021-.675 1.019.004-.012 2.956 1.388 4.41 4.492 4.48.673.016.66 1.021-.013 1.019-2.898-.011-4.327 1.446-4.48 4.506-.033.658-1.01.639-1.018-.02-.03-3.027-1.382-4.49-4.481-4.486-.675 0-.682-1.009-.008-1.019 3.02-.042 4.478-1.452 4.49-4.484zm.505 2.757l-.115.242c-.459.9-1.166 1.558-2.115 1.976l.176.08c.973.465 1.664 1.211 2.083 2.22l.02.05.088-.192c.464-.973 1.173-1.685 2.123-2.124l.039-.018-.118-.05c-.963-.435-1.667-1.117-2.113-2.034l-.068-.15zm10.357-8.12c.174.17.194.434.058.625l-.058.068-1.954 1.905 1.954 1.908a.482.482 0 010 .694.512.512 0 01-.641.056l-.07-.056-1.954-1.908-1.954 1.908a.511.511 0 01-.71 0 .482.482 0 01-.058-.626l.058-.068 1.954-1.908-1.954-1.905a.482.482 0 010-.693.512.512 0 01.64-.057l.07.057 1.954 1.905 1.954-1.905a.511.511 0 01.71 0z"
+                ></path>
+              </svg>
+              Live
+            </aside>
+          </a>
+        </nav>
+      </header>
     </div>
-    <!-- /.container -->
-    <!-- EDIT_CODE_V2 -->
+    <main>
+      <div class="content">
+        <section id="intro">
+          <h2>Twilio Verify</h2>
+          <p>
+            This example shows how to use
+            <a href="https://twilio.com/docs/verify/api">Twilio Verify</a>
+            and Twilio functions for serverless user verification, including
+            best practices for SMS retry logic with Voice fallback.
+          </p>
+        </section>
+        <section>
+          <form id="login">
+            <div>
+              <label for="phone_number">Enter your phone number:</label>
+            </div>
+            <div>
+              <input type="tel" id="phone_number" class="form-control" />
+              <input type="submit" value="Verify" />
+            </div>
+          </form>
+          <div><span id="sent-status"></span></div>
+          <form id="otp">
+            <div>
+              <label for="code">Enter the token sent to your device:</label>
+            </div>
+            <div>
+              <input type="text" id="code" placeholder="123456" required />
+              <input type="submit" value="Verify" />
+            </div>
+          </form>
+          <button id="retry" disabled="true">
+            You can resend a code in <span id="counter">5</span> seconds
+          </button>
+          <div><span id="otp-status"></span></div>
+        </section>
+      </div>
+      <!-- EDIT_CODE_V2 -->
+    </main>
+    <footer>
+      <span>We can't wait to see what you build.</span>
+    </footer>
   </body>
   <script>
     // Handle international prefixes, format phone input field
@@ -94,25 +147,32 @@
         "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/16.0.11/js/utils.js",
     });
 
-    function showVerificationStatus(alertType, message) {
-      var content = $(".result-message");
-      content.empty();
-      content.append(
-        $("<div>")
-          .addClass(`alert alert-${alertType}`)
-          .attr("role", "alert")
-          .text(message)
-      );
+    function showError(error) {
+      console.error(error);
+      showStatus(error);
     }
 
-    function showVerificationStartError(error) {
-      var content = $("#form-error");
-      content.empty();
-      content.append(`Error: ${error}`);
+    function showStatus(message) {
+      document.getElementById("status").textContent = message;
+    }
+
+    function getRetryTimeout(attemptNumber) {
+      if (attemptNumber > 5) return -1;
+
+      // increase timeout with more attempts
+      const retryTimeouts = {
+        1: 30,
+        2: 45,
+        3: 60,
+        4: 90,
+        5: 120,
+      };
+
+      return retryTimeouts[attemptNumber];
     }
 
     function startCountdown() {
-      let counter = $("#retry-counter");
+      let counter = $("#retry");
       counter.addClass("disabled");
 
       let timer = function (x) {
@@ -131,10 +191,7 @@
     }
 
     var to;
-
-    $("#retry-counter").submit(function (event) {
-      // send code again
-    });
+    var attempt;
 
     function sendVerificationToken(event) {
       event.preventDefault();
@@ -153,7 +210,7 @@
         .then((response) => response.json())
         .then((json) => {
           if (json.success) {
-            hidePhoneNumberInput();
+            document.getElementById("login").style.display = "none";
             document.getElementById("otp").style.display = "flex";
             startCountdown();
             console.log("Successfully sent token.");
@@ -166,12 +223,7 @@
         });
     }
 
-    function logError(error) {
-      console.error(error);
-      document.getElementById("status").textContent = error;
-    }
-
-    function verify(event) {
+    function validateToken(event) {
       event.preventDefault();
 
       const data = new URLSearchParams();
@@ -188,35 +240,6 @@
         .then((response) => response.json())
         .then((json) => {
           if (json.success) {
-            hideOtpInput();
-            document.getElementById("otp").style.display = "none";
-            document.getElementById("status").textContent =
-              "Successfully subscribed to updates.";
-          } else {
-            logError(json.error);
-          }
-        })
-        .catch((error) => {
-          logError(error);
-        });
-    }
-
-    $("#verification").submit(function (event) {
-      event.preventDefault();
-      const code = $("#verification_code").val();
-
-      // Twilio functions do not accept multipart/form-data
-      const data = new URLSearchParams();
-      data.append("to", to);
-      data.append("verification_code", code);
-
-      fetch("./check-verify", {
-        method: "POST",
-        body: data,
-      })
-        .then((response) => response.json())
-        .then((json) => {
-          if (json.success) {
             showVerificationStatus("success", json.message);
             $("#verification_code").val("");
           } else {
@@ -224,11 +247,19 @@
             $("#verification_code").val("");
           }
         })
-        .catch((err) => {
-          console.log(err);
-          showVerificationStatus("danger", "Something went wrong!");
-          $("#verification_code").val("");
+        .catch((error) => {
+          logError(error);
         });
-    });
+    }
+
+    document
+      .getElementById("login")
+      .addEventListener("submit", sendVerificationToken);
+
+    document
+      .getElementById("retry")
+      .addEventListener("submit", sendVerificationToken);
+
+    document.getElementById("otp").addEventListener("submit", validateToken);
   </script>
 </html>
