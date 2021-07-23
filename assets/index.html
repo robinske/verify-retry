@@ -128,7 +128,7 @@
             </div>
             <div>
               <input type="tel" id="phone_number" class="form-control" />
-              <input type="submit" value="Verify" />
+              <input type="submit" value="Get a verification code" />
             </div>
           </form>
           <div>
@@ -283,7 +283,7 @@
           showReset("Edit phone number.");
         })
         .catch(() => {
-          showError("Something went wrong.");
+          showError(`Something went wrong while sending code to ${to}.`);
           showReset("Edit phone number.");
         });
     }

@@ -47,42 +47,52 @@ exports.handler = function (context, event, callback) {
     .fetch({ type: ["carrier"] })
     .then((pn) => pn.carrier.type);
 
-  lookupResponse.then((lineType) => {
-    let channel;
-    let message;
+  lookupResponse
+    .then((lineType) => {
+      let channel;
+      let message;
 
-    if (lineType == "landline") {
-      channel = "call";
-      message = `Landline detected. Sent ${channel} verification to: ${to}`;
-    } else {
-      channel = typeof event.channel === "undefined" ? "sms" : event.channel;
-      message = `Sent ${channel} verification to: ${to}`;
-    }
+      if (lineType == "landline") {
+        channel = "call";
+        message = `Landline detected. Sent ${channel} verification to: ${to}`;
+      } else {
+        channel = typeof event.channel === "undefined" ? "sms" : event.channel;
+        message = `Sent ${channel} verification to: ${to}`;
+      }
 
-    client.verify
-      .services(service)
-      .verifications.create({
-        to,
-        channel,
-      })
-      .then((verification) => {
-        console.log(`Sent verification ${verification.sid}`);
-        response.setStatusCode(200);
-        response.setBody({
-          success: true,
-          attempts: verification.sendCodeAttempts.length,
-          message: message,
+      client.verify
+        .services(service)
+        .verifications.create({
+          to,
+          channel,
+        })
+        .then((verification) => {
+          console.log(`Sent verification ${verification.sid}`);
+          response.setStatusCode(200);
+          response.setBody({
+            success: true,
+            attempts: verification.sendCodeAttempts.length,
+            message: message,
+          });
+          return callback(null, response);
+        })
+        .catch((error) => {
+          console.log(error);
+          response.setStatusCode(error.status);
+          response.setBody({
+            success: false,
+            message: error.message,
+          });
+          return callback(null, response);
         });
-        return callback(null, response);
-      })
-      .catch((error) => {
-        console.log(error);
-        response.setStatusCode(error.status);
-        response.setBody({
-          success: false,
-          message: error.message,
-        });
-        return callback(null, response);
+    })
+    .catch((error) => {
+      console.log(error);
+      response.setStatusCode(error.status);
+      response.setBody({
+        success: false,
+        message: `Invalid phone number: '${to}'`,
       });
-  });
+      return callback(null, response);
+    });
 };
