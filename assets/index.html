@@ -247,7 +247,6 @@
       let statusMessage =
         channel == "call" ? "☎️ calling..." : "Sending verification code...";
       showStatus(statusMessage);
-      showOtpForm();
 
       to = phoneInput.getNumber();
 
@@ -262,25 +261,31 @@
         .then((response) => {
           if (response.status == 429) {
             clearStatus();
+            showOtpForm();
+            showError(
+              `You have attempted to verify the phone number ${to} too many times. If you received a code, enter it below. Otherwise, please wait 10 minutes and `
+            );
+            showReset("try again.");
+          } else if (response.status == 404) {
+            clearStatus();
             document.getElementById("otp").style.display = "none";
-            showReset("Please wait 10 minutes and try again.");
-            return {
-              success: false,
-              message:
-                "You have attempted to verify your phone number too many times.",
-            };
+            document.getElementById("login").style.display = "flex";
+
+            return response.json().then(({ message }) => {
+              showError(message);
+            });
           } else {
-            return response.json();
+            showOtpForm();
+            return response.json().then((json) => {
+              if (json.success) {
+                showStatus(json.message + `.`);
+                startCountdown(json.attempts);
+              } else {
+                showError(json.message);
+              }
+              showReset("Edit phone number.");
+            });
           }
-        })
-        .then((json) => {
-          if (json.success) {
-            showStatus(json.message);
-            startCountdown(json.attempts);
-          } else {
-            showError(json.message);
-          }
-          showReset("Edit phone number.");
         })
         .catch(() => {
           showError(`Something went wrong while sending code to ${to}.`);
