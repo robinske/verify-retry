@@ -41,31 +41,48 @@ exports.handler = function (context, event, callback) {
   const client = context.getTwilioClient();
   const service = context.VERIFY_SERVICE_SID;
   const { to } = event;
-  const channel = typeof event.channel === "undefined" ? "sms" : event.channel;
 
-  client.verify
-    .services(service)
-    .verifications.create({
-      to,
-      channel,
-    })
-    .then((verification) => {
-      console.log(`Sent verification ${verification.sid}`);
-      response.setStatusCode(200);
-      response.setBody({
-        success: true,
-        attempts: verification.sendCodeAttempts.length,
-        message: `Sent verification to: ${to}`,
+  const lineType = client.lookups.v1
+    .phoneNumbers(to)
+    .fetch({ type: ["carrier"] })
+    .then((pn) => pn.carrier.type);
+
+  lineType.then((lt) => {
+    let channel;
+    let message;
+
+    if (lt == "landline") {
+      channel = "call";
+      message = `Landline detected. Sent ${channel} verification to: ${to}`;
+    } else {
+      channel = typeof event.channel === "undefined" ? "sms" : event.channel;
+      message = `Sent ${channel} verification to: ${to}`;
+    }
+
+    client.verify
+      .services(service)
+      .verifications.create({
+        to,
+        channel,
+      })
+      .then((verification) => {
+        console.log(`Sent verification ${verification.sid}`);
+        response.setStatusCode(200);
+        response.setBody({
+          success: true,
+          attempts: verification.sendCodeAttempts.length,
+          message: message,
+        });
+        return callback(null, response);
+      })
+      .catch((error) => {
+        console.log(error);
+        response.setStatusCode(error.status);
+        response.setBody({
+          success: false,
+          message: error.message,
+        });
+        return callback(null, response);
       });
-      return callback(null, response);
-    })
-    .catch((error) => {
-      console.log(error);
-      response.setStatusCode(error.status);
-      response.setBody({
-        success: false,
-        message: error.message,
-      });
-      return callback(null, response);
-    });
+  });
 };

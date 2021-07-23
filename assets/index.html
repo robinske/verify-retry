@@ -135,7 +135,7 @@
           </div>
           <form id="otp" style="display: none">
             <div>
-              <label for="code">Enter the token sent to your device:</label>
+              <label for="code">Enter the code sent to your device:</label>
             </div>
             <div>
               <input type="text" id="code" placeholder="123456" required />
@@ -143,7 +143,9 @@
             </div>
           </form>
           <button id="retry" disabled="true" style="display: none"></button>
-          <button id="call" style="display: none">📞 Call me instead</button>
+          <button id="call" style="display: none">
+            📞 Having trouble receiving SMS, call me instead
+          </button>
         </section>
       </div>
       <!-- EDIT_CODE_V2 -->
@@ -174,10 +176,10 @@
       status.textContent = message;
     }
 
-    function showReset(message = "or use a different phone number") {
+    function showReset(message) {
       document.getElementById(
         "reset"
-      ).innerHTML = `<a href="#" onclick="window.location.reload(false);">${message}.</a>`;
+      ).innerHTML = `<a href="#" onclick="window.location.reload(false);">${message}</a>`;
     }
 
     function getRetryTimeout(attemptNumber) {
@@ -241,6 +243,9 @@
 
     function sendVerificationToken(event, channel = "sms") {
       event.preventDefault();
+      let statusMessage =
+        channel == "call" ? "☎️ calling..." : "Sending verification code...";
+      showStatus(statusMessage);
       showOtpForm();
 
       to = phoneInput.getNumber();
@@ -253,11 +258,24 @@
         method: "POST",
         body: data,
       })
-        .then((response) => response.json())
+        .then((response) => {
+          if (response.status == 429) {
+            clearStatus();
+            document.getElementById("otp").style.display = "none";
+            showReset("Please wait 5 minutes and try again.");
+            return {
+              success: false,
+              message:
+                "You have attempted to verify your phone number too many times.",
+            };
+          } else {
+            return response.json();
+          }
+        })
         .then((json) => {
           if (json.success) {
             showStatus(json.message);
-            showReset();
+            showReset("or use a different phone number.");
             startCountdown(json.attempts);
           } else {
             showError(json.message);
@@ -288,6 +306,8 @@
 
     function validateToken(event) {
       event.preventDefault();
+      clearStatus();
+      showStatus("Checking code...");
 
       const data = new URLSearchParams();
       data.append("to", to);
@@ -300,16 +320,18 @@
         method: "POST",
         body: data,
       })
-        .then((response) => response.json())
+        .then((response) => {
+          return response.json();
+        })
         .then((json) => {
           if (json.success) {
             clearStatus();
             document.getElementById("otp").style.display = "none";
             showStatus(json.message, (color = "#3c763d"));
-            showReset((message = "Try another verification"));
           } else {
-            showError(json.message);
+            showError(`${json.message} Check the code sent to ${to}.`);
           }
+          showReset("Try another verification.");
           document.getElementById("code").value = "";
         })
         .catch((error) => {
