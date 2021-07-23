@@ -42,16 +42,16 @@ exports.handler = function (context, event, callback) {
   const service = context.VERIFY_SERVICE_SID;
   const { to } = event;
 
-  const lineType = client.lookups.v1
+  const lookupResponse = client.lookups.v1
     .phoneNumbers(to)
     .fetch({ type: ["carrier"] })
     .then((pn) => pn.carrier.type);
 
-  lineType.then((lt) => {
+  lookupResponse.then((lineType) => {
     let channel;
     let message;
 
-    if (lt == "landline") {
+    if (lineType == "landline") {
       channel = "call";
       message = `Landline detected. Sent ${channel} verification to: ${to}`;
     } else {

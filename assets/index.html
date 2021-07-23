@@ -115,9 +115,11 @@
         <section>
           <p>
             This demo of the
-            <a href="https://www.twilio.com/docs/verify/api">Verify Push API</a>
+            <a href="https://www.twilio.com/docs/verify/api">
+              Twilio Verify API
+            </a>
             includes best practices for SMS verification retry logic with Voice
-            fallback.
+            fallback and landline detection.
           </p>
           <hr />
           <form id="login">
@@ -233,7 +235,6 @@
         if (timeRemaining == 15) {
           showCallFallback(attempts);
         }
-        console.log(timeRemaining);
         retryButton.innerHTML = `🔁 Resend code in <strong>${timeRemaining} seconds</strong>`;
         timeRemaining--;
       }
@@ -262,7 +263,7 @@
           if (response.status == 429) {
             clearStatus();
             document.getElementById("otp").style.display = "none";
-            showReset("Please wait 5 minutes and try again.");
+            showReset("Please wait 10 minutes and try again.");
             return {
               success: false,
               message:
@@ -275,14 +276,15 @@
         .then((json) => {
           if (json.success) {
             showStatus(json.message);
-            showReset("or use a different phone number.");
             startCountdown(json.attempts);
           } else {
             showError(json.message);
           }
+          showReset("Edit phone number.");
         })
-        .catch((error) => {
-          showError(error);
+        .catch(() => {
+          showError("Something went wrong.");
+          showReset("Edit phone number.");
         });
     }
 
@@ -331,7 +333,9 @@
           } else {
             showError(`${json.message} Check the code sent to ${to}.`);
           }
-          showReset("Try another verification.");
+          showReset(
+            "Use a different phone number or start a new verification."
+          );
           document.getElementById("code").value = "";
         })
         .catch((error) => {
