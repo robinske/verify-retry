@@ -266,7 +266,7 @@
               `You have attempted to verify the phone number ${to} too many times. If you received a code, enter it below. Otherwise, please wait 10 minutes and `
             );
             showReset("try again.");
-          } else if (response.status == 404) {
+          } else if (response.status >= 400) {
             clearStatus();
             document.getElementById("otp").style.display = "none";
             document.getElementById("login").style.display = "flex";
