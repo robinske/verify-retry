@@ -1,24 +1,19 @@
-/**
- *  Start Verification
- *
- *  This Function shows you how to send a verification token for Twilio Verify.
- *
- *  Pre-requisites
- *  - Create a Verify Service (https://www.twilio.com/console/verify/services)
- *  - Add VERIFY_SERVICE_SID from above to your Environment Variables (https://www.twilio.com/console/functions/configure)
- *  - Enable ACCOUNT_SID and AUTH_TOKEN in your functions configuration (https://www.twilio.com/console/functions/configure)
- *
- *
- *  Returns JSON
- *  {
- *    "success":  boolean,
- *    "attempts": integer, // not present if success is false
- *    "message":  string
- *  }
- */
+async function getLineType(client, to) {
+  try {
+    const response = await client.lookups.v2
+      .phoneNumbers(to)
+      .fetch({ fields: "line_type_intelligence" });
 
-// eslint-disable-next-line consistent-return
-exports.handler = function (context, event, callback) {
+    return response.lineTypeIntelligence.type;
+  } catch (error) {
+    throw new VerificationException(
+      error.status,
+      `Invalid phone number: '${to}'`
+    );
+  }
+}
+
+exports.handler = async function (context, event, callback) {
   const response = new Twilio.Response();
   response.appendHeader("Content-Type", "application/json");
 
@@ -32,67 +27,47 @@ exports.handler = function (context, event, callback) {
   if (typeof event.to === "undefined") {
     response.setBody({
       success: false,
-      message: "Missing parameter; please provide a phone number or email.",
+      message: "Missing parameter.",
     });
     response.setStatusCode(400);
     return callback(null, response);
   }
 
-  const client = context.getTwilioClient();
-  const service = context.VERIFY_SERVICE_SID;
-  const { to } = event;
+  try {
+    const client = context.getTwilioClient();
+    const service = context.VERIFY_SERVICE_SID;
+    const { to } = event;
 
-  const lookupResponse = client.lookups.v1
-    .phoneNumbers(to)
-    .fetch({ type: ["carrier"] })
-    .then((pn) => pn.carrier.type);
+    const lineType = await getLineType(client, to);
 
-  lookupResponse
-    .then((lineType) => {
-      let channel;
-      let message;
+    let channel = typeof event.channel === "undefined" ? "sms" : event.channel;
+    let message = `Sent ${channel} verification to: ${to}`;
 
-      if (lineType == "landline") {
-        channel = "call";
-        message = `Landline detected. Sent ${channel} verification to: ${to}`;
-      } else {
-        channel = typeof event.channel === "undefined" ? "sms" : event.channel;
-        message = `Sent ${channel} verification to: ${to}`;
-      }
+    if (lineType === "landline") {
+      channel = "call";
+      message = `Landline detected. Sent ${channel} verification to: ${to}`;
+    }
 
-      client.verify
-        .services(service)
-        .verifications.create({
-          to,
-          channel,
-        })
-        .then((verification) => {
-          console.log(`Sent verification ${verification.sid}`);
-          response.setStatusCode(200);
-          response.setBody({
-            success: true,
-            attempts: verification.sendCodeAttempts.length,
-            message: message,
-          });
-          return callback(null, response);
-        })
-        .catch((error) => {
-          console.log(error);
-          response.setStatusCode(error.status);
-          response.setBody({
-            success: false,
-            message: error.message,
-          });
-          return callback(null, response);
-        });
-    })
-    .catch((error) => {
-      console.log(error);
-      response.setStatusCode(error.status);
-      response.setBody({
-        success: false,
-        message: `Invalid phone number: '${to}'`,
+    const verification = await client.verify
+      .services(service)
+      .verifications.create({
+        to,
+        channel,
       });
-      return callback(null, response);
+
+    response.setStatusCode(200);
+    response.setBody({
+      success: true,
+      attempts: verification.sendCodeAttempts.length,
+      message,
     });
+    return callback(null, response);
+  } catch (error) {
+    response.setStatusCode(error.status);
+    response.setBody({
+      success: false,
+      message: error.message,
+    });
+    return callback(null, response);
+  }
 };

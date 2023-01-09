@@ -287,7 +287,8 @@
             });
           }
         })
-        .catch(() => {
+        .catch((err) => {
+          console.error(err);
           showError(`Something went wrong while sending code to ${to}.`);
           showReset("Edit phone number.");
         });
